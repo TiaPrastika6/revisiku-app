@@ -35,6 +35,18 @@ def potong_teks(teks, batas=220):
     return teks[:batas].rstrip() + "..."
 
 
+def ambil_opsi_unik(catatan_list, field):
+    hasil = []
+
+    for catatan in catatan_list:
+        nilai = catatan.get(field, "")
+
+        if nilai and nilai not in hasil:
+            hasil.append(nilai)
+
+    return sorted(hasil)
+
+
 def render_daftar_catatan():
     st.title("📋 Daftar Catatan")
     st.write(
@@ -43,6 +55,14 @@ def render_daftar_catatan():
     )
 
     st.divider()
+
+    catatan_aktif = [
+        catatan for catatan in st.session_state.catatan_list
+        if not catatan.get("arsip", False)
+    ]
+
+    opsi_mata_kuliah = ambil_opsi_unik(catatan_aktif, "mata_kuliah")
+    opsi_nama_dosen = ambil_opsi_unik(catatan_aktif, "nama_dosen")
 
     # =========================
     # FILTER
@@ -70,15 +90,29 @@ def render_daftar_catatan():
                 ["Semua"] + PRIORITAS_LIST
             )
 
-        col4, col5 = st.columns([2, 1])
+        col4, col5 = st.columns(2)
 
         with col4:
-            keyword = st.text_input(
-                "Cari catatan",
-                placeholder="Cari berdasarkan judul atau isi..."
+            filter_mata_kuliah = st.selectbox(
+                "Mata Kuliah",
+                ["Semua"] + opsi_mata_kuliah
             )
 
         with col5:
+            filter_nama_dosen = st.selectbox(
+                "Nama Dosen",
+                ["Semua"] + opsi_nama_dosen
+            )
+
+        col6, col7 = st.columns([2, 1])
+
+        with col6:
+            keyword = st.text_input(
+                "Cari catatan",
+                placeholder="Cari berdasarkan judul, isi, mata kuliah, atau nama dosen..."
+            )
+
+        with col7:
             urutkan = st.selectbox(
                 "Urutkan",
                 ["Deadline terdekat", "Deadline terlama", "Terbaru ditambahkan"]
@@ -92,7 +126,6 @@ def render_daftar_catatan():
     data_tampil = []
 
     for index, catatan in enumerate(st.session_state.catatan_list):
-        # Catatan yang sudah diarsipkan tidak tampil di daftar utama
         if catatan.get("arsip", False):
             continue
 
@@ -111,6 +144,16 @@ def render_daftar_catatan():
             or catatan.get("prioritas", "Sedang") == filter_prioritas
         )
 
+        cocok_mata_kuliah = (
+            filter_mata_kuliah == "Semua"
+            or catatan.get("mata_kuliah", "") == filter_mata_kuliah
+        )
+
+        cocok_nama_dosen = (
+            filter_nama_dosen == "Semua"
+            or catatan.get("nama_dosen", "") == filter_nama_dosen
+        )
+
         teks = (
             f"{catatan.get('judul', '')} "
             f"{catatan.get('isi', '')} "
@@ -120,7 +163,14 @@ def render_daftar_catatan():
 
         cocok_keyword = keyword.lower() in teks
 
-        if cocok_kategori and cocok_status and cocok_prioritas and cocok_keyword:
+        if (
+            cocok_kategori
+            and cocok_status
+            and cocok_prioritas
+            and cocok_mata_kuliah
+            and cocok_nama_dosen
+            and cocok_keyword
+        ):
             data_tampil.append((index, catatan))
 
     if urutkan == "Deadline terdekat":
