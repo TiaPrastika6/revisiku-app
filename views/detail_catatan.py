@@ -49,6 +49,42 @@ def render_html(kode):
     st.markdown(dedent(kode).strip(), unsafe_allow_html=True)
 
 
+def normalisasi_checklist(catatan):
+    checklist = catatan.get("checklist", [])
+
+    if not isinstance(checklist, list):
+        checklist = []
+
+    checklist_bersih = []
+
+    for item in checklist:
+        if isinstance(item, dict):
+            checklist_bersih.append({
+                "teks": str(item.get("teks", "")),
+                "selesai": bool(item.get("selesai", False))
+            })
+        else:
+            checklist_bersih.append({
+                "teks": str(item),
+                "selesai": False
+            })
+
+    catatan["checklist"] = checklist_bersih
+    return checklist_bersih
+
+
+def hitung_progress_checklist(checklist):
+    total = len(checklist)
+
+    if total == 0:
+        return 0, 0, 0
+
+    selesai = len([item for item in checklist if item.get("selesai")])
+    progress = round((selesai / total) * 100)
+
+    return total, selesai, progress
+
+
 def render_detail_catatan():
     # =========================
     # VALIDASI DATA
@@ -79,6 +115,9 @@ def render_detail_catatan():
     prioritas = catatan.get("prioritas", "Sedang")
     status = catatan.get("status", "Belum dikerjakan")
     deadline = catatan.get("deadline", "-")
+    checklist = normalisasi_checklist(catatan)
+
+    total_checklist, checklist_selesai, progress_checklist = hitung_progress_checklist(checklist)
 
     # =========================
     # STYLE KHUSUS DETAIL
@@ -87,10 +126,6 @@ def render_detail_catatan():
     <style>
     .detail-wrapper {
         margin-top: 4px;
-    }
-
-    .detail-title-box {
-        margin-bottom: 18px;
     }
 
     .detail-label {
@@ -113,7 +148,6 @@ def render_detail_catatan():
         white-space: pre-wrap;
         text-align: left;
 
-        /* Tinggi kotak isi catatan */
         height: 760px;
         overflow-y: auto;
 
@@ -175,8 +209,15 @@ def render_detail_catatan():
     # KOLOM KIRI
     # =========================
     with col_kiri:
-        tab_isi, tab_edit = st.tabs(["📝 Isi Catatan", "✏️ Edit Catatan"])
+        tab_isi, tab_edit, tab_checklist = st.tabs([
+            "📝 Isi Catatan",
+            "✏️ Edit Catatan",
+            "✅ Checklist"
+        ])
 
+        # =========================
+        # TAB ISI CATATAN
+        # =========================
         with tab_isi:
             with st.container(border=True):
                 st.subheader("Isi Catatan")
@@ -187,6 +228,9 @@ def render_detail_catatan():
                 <div class="isi-catatan-box">{isi_bersih}</div>
                 """)
 
+        # =========================
+        # TAB EDIT CATATAN
+        # =========================
         with tab_edit:
             with st.container(border=True):
                 st.subheader("Edit Catatan")
@@ -260,6 +304,93 @@ def render_detail_catatan():
                             st.success("Catatan berhasil diperbarui.")
                             st.rerun()
 
+        # =========================
+        # TAB CHECKLIST
+        # =========================
+        with tab_checklist:
+            with st.container(border=True):
+                st.subheader("Checklist Subtugas/Revisi")
+                st.caption(
+                    "Pecah catatan panjang menjadi beberapa pekerjaan kecil "
+                    "agar lebih mudah dipantau."
+                )
+
+                col_m1, col_m2, col_m3 = st.columns(3)
+                col_m1.metric("Total Item", total_checklist)
+                col_m2.metric("Selesai", checklist_selesai)
+                col_m3.metric("Progress", f"{progress_checklist}%")
+
+                st.progress(progress_checklist / 100)
+
+                st.divider()
+
+                with st.form(f"form_tambah_checklist_{index}", clear_on_submit=True):
+                    item_baru = st.text_input(
+                        "Tambah item checklist",
+                        placeholder="Contoh: Perbaiki paragraf latar belakang"
+                    )
+
+                    tombol_tambah_item = st.form_submit_button(
+                        "Tambah Checklist",
+                        use_container_width=True
+                    )
+
+                    if tombol_tambah_item:
+                        if item_baru.strip() == "":
+                            st.warning("Item checklist tidak boleh kosong.")
+                        else:
+                            st.session_state.catatan_list[index]["checklist"].append({
+                                "teks": item_baru.strip(),
+                                "selesai": False
+                            })
+
+                            simpan_catatan(st.session_state.catatan_list)
+                            st.success("Item checklist berhasil ditambahkan.")
+                            st.rerun()
+
+                st.divider()
+
+                if total_checklist == 0:
+                    st.info("Belum ada checklist untuk catatan ini.")
+                else:
+                    for item_index, item in enumerate(list(checklist)):
+                        col_check, col_hapus = st.columns([5, 1])
+
+                        with col_check:
+                            selesai_baru = st.checkbox(
+                                item.get("teks", "-"),
+                                value=item.get("selesai", False),
+                                key=f"checklist_{index}_{item_index}"
+                            )
+
+                            if selesai_baru != item.get("selesai", False):
+                                st.session_state.catatan_list[index]["checklist"][item_index]["selesai"] = selesai_baru
+                                simpan_catatan(st.session_state.catatan_list)
+                                st.rerun()
+
+                        with col_hapus:
+                            if st.button(
+                                "Hapus",
+                                key=f"hapus_checklist_{index}_{item_index}",
+                                use_container_width=True
+                            ):
+                                st.session_state.catatan_list[index]["checklist"].pop(item_index)
+                                simpan_catatan(st.session_state.catatan_list)
+                                st.rerun()
+
+                    if total_checklist > 0 and checklist_selesai == total_checklist:
+                        st.success("Semua checklist sudah selesai.")
+
+                        if status != "Selesai":
+                            if st.button(
+                                "Tandai Catatan sebagai Selesai",
+                                use_container_width=True
+                            ):
+                                st.session_state.catatan_list[index]["status"] = "Selesai"
+                                simpan_catatan(st.session_state.catatan_list)
+                                st.success("Catatan berhasil ditandai selesai.")
+                                st.rerun()
+
     # =========================
     # KOLOM KANAN
     # =========================
@@ -271,6 +402,7 @@ def render_detail_catatan():
             st.info(f"⭐ **Prioritas**\n\n{label_prioritas(prioritas)}")
             st.info(f"📌 **Status**\n\n{label_status(status)}")
             st.info(f"📅 **Deadline**\n\n{deadline}")
+            st.info(f"✅ **Checklist**\n\n{checklist_selesai}/{total_checklist} selesai")
 
             keterangan_deadline = cek_deadline(deadline)
 
