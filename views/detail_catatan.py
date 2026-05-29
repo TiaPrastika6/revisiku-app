@@ -33,7 +33,6 @@ def rapikan_isi_catatan(teks):
     teks = teks.replace("\r\n", "\n")
     teks = dedent(teks).strip()
 
-    # Menghilangkan spasi/tab di awal setiap baris
     baris_bersih = []
     for baris in teks.split("\n"):
         baris_bersih.append(baris.lstrip())
@@ -44,6 +43,10 @@ def rapikan_isi_catatan(teks):
 def kembali_ke_daftar():
     st.session_state.halaman = "Daftar Catatan"
     st.rerun()
+
+
+def render_html(kode):
+    st.markdown(dedent(kode).strip(), unsafe_allow_html=True)
 
 
 def render_detail_catatan():
@@ -78,6 +81,72 @@ def render_detail_catatan():
     deadline = catatan.get("deadline", "-")
 
     # =========================
+    # STYLE KHUSUS DETAIL
+    # =========================
+    render_html("""
+    <style>
+    .detail-wrapper {
+        margin-top: 4px;
+    }
+
+    .detail-title-box {
+        margin-bottom: 18px;
+    }
+
+    .detail-label {
+        color: #94a3b8;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+    }
+
+    .isi-catatan-box {
+        background-color: rgba(15, 23, 42, 0.72);
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 18px;
+        padding: 30px 34px;
+        color: #f8fafc;
+        font-size: 16px;
+        line-height: 1.9;
+        white-space: pre-wrap;
+        text-align: left;
+
+        /* Tinggi kotak isi catatan */
+        height: 760px;
+        overflow-y: auto;
+
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+    }
+
+    .isi-catatan-box::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .isi-catatan-box::-webkit-scrollbar-track {
+        background: rgba(15, 23, 42, 0.5);
+        border-radius: 999px;
+    }
+
+    .isi-catatan-box::-webkit-scrollbar-thumb {
+        background: rgba(148, 163, 184, 0.45);
+        border-radius: 999px;
+    }
+
+    .isi-catatan-box::-webkit-scrollbar-thumb:hover {
+        background: rgba(148, 163, 184, 0.7);
+    }
+
+    .small-muted {
+        color: #94a3b8;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+    </style>
+    """)
+
+    # =========================
     # TOMBOL KEMBALI
     # =========================
     if st.button("← Kembali ke Daftar Catatan"):
@@ -86,60 +155,21 @@ def render_detail_catatan():
     # =========================
     # HEADER
     # =========================
-    st.caption("DETAIL CATATAN")
+    render_html("""
+    <div class="detail-wrapper">
+        <div class="detail-label">Detail Catatan</div>
+    </div>
+    """)
+
     st.title(judul)
     st.caption(f"📅 Deadline: {deadline} | {cek_deadline(deadline)}")
 
     st.divider()
 
     # =========================
-    # STYLE KHUSUS DETAIL
-    # =========================
-    st.markdown(
-        """
-        <style>
-        .isi-catatan-box {
-            background-color: rgba(15, 23, 42, 0.72);
-            border: 1px solid rgba(148, 163, 184, 0.22);
-            border-radius: 18px;
-            padding: 28px 32px;
-            color: #f8fafc;
-            font-size: 16px;
-            line-height: 1.9;
-            white-space: pre-wrap;
-            text-align: left;
-            min-height: 520px;
-            max-height: 650px;
-            overflow-y: auto;
-            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
-        }
-
-        .isi-catatan-box::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .isi-catatan-box::-webkit-scrollbar-track {
-            background: rgba(15, 23, 42, 0.5);
-            border-radius: 999px;
-        }
-
-        .isi-catatan-box::-webkit-scrollbar-thumb {
-            background: rgba(148, 163, 184, 0.45);
-            border-radius: 999px;
-        }
-
-        .isi-catatan-box::-webkit-scrollbar-thumb:hover {
-            background: rgba(148, 163, 184, 0.7);
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-    # =========================
     # LAYOUT UTAMA
     # =========================
-    col_kiri, col_kanan = st.columns([3, 1.15])
+    col_kiri, col_kanan = st.columns([3.4, 1.15], gap="large")
 
     # =========================
     # KOLOM KIRI
@@ -147,25 +177,16 @@ def render_detail_catatan():
     with col_kiri:
         tab_isi, tab_edit = st.tabs(["📝 Isi Catatan", "✏️ Edit Catatan"])
 
-        # =========================
-        # TAB ISI CATATAN
-        # =========================
         with tab_isi:
             with st.container(border=True):
                 st.subheader("Isi Catatan")
 
                 isi_bersih = escape(rapikan_isi_catatan(isi))
 
-                st.markdown(
-                    f"""
-                    <div class="isi-catatan-box">{isi_bersih}</div>
-                    """,
-                    unsafe_allow_html=True
-                )
+                render_html(f"""
+                <div class="isi-catatan-box">{isi_bersih}</div>
+                """)
 
-        # =========================
-        # TAB EDIT CATATAN
-        # =========================
         with tab_edit:
             with st.container(border=True):
                 st.subheader("Edit Catatan")
@@ -179,7 +200,7 @@ def render_detail_catatan():
                     edit_isi = st.text_area(
                         "Isi catatan",
                         value=isi,
-                        height=280
+                        height=320
                     )
 
                     col_edit1, col_edit2 = st.columns(2)
