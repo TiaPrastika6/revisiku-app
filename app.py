@@ -5,6 +5,7 @@ from styles import load_css
 from views.dashboard import render_dashboard
 from views.tambah_catatan import render_tambah_catatan
 from views.daftar_catatan import render_daftar_catatan
+from views.detail_catatan import render_detail_catatan
 
 
 st.set_page_config(
@@ -18,12 +19,15 @@ init_session()
 
 
 # =========================
-# SIDEBAR
+# SESSION HALAMAN
 # =========================
 if "halaman" not in st.session_state:
     st.session_state.halaman = "Dashboard"
 
 
+# =========================
+# SIDEBAR
+# =========================
 with st.sidebar:
     st.markdown("## 📘 RevisiKu")
     st.caption("Academic Notes Tracker")
@@ -34,12 +38,15 @@ with st.sidebar:
 
     if st.button("🏠 Dashboard", use_container_width=True):
         st.session_state.halaman = "Dashboard"
+        st.rerun()
 
     if st.button("➕ Tambah Catatan", use_container_width=True):
         st.session_state.halaman = "Tambah Catatan"
+        st.rerun()
 
     if st.button("📋 Daftar Catatan", use_container_width=True):
         st.session_state.halaman = "Daftar Catatan"
+        st.rerun()
 
     st.divider()
 
@@ -59,3 +66,6 @@ elif st.session_state.halaman == "Tambah Catatan":
 
 elif st.session_state.halaman == "Daftar Catatan":
     render_daftar_catatan()
+
+elif st.session_state.halaman == "Detail Catatan":
+    render_detail_catatan()

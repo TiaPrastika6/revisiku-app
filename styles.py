@@ -29,8 +29,10 @@ def load_css():
         }
 
         .block-container {
-            padding-top: 3rem;
-            max-width: 1180px;
+            padding-top: 2rem;
+            padding-left: 3rem;
+            padding-right: 3rem;
+            max-width: 1500px;
         }
 
         .dashboard-hero {

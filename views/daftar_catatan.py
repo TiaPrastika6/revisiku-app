@@ -1,7 +1,5 @@
 import streamlit as st
-from datetime import datetime
 
-from data import simpan_catatan
 from utils import (
     STATUS_LIST,
     KATEGORI_LIST,
@@ -27,9 +25,18 @@ def label_status(status):
     return "🕒 Belum dikerjakan"
 
 
+def potong_teks(teks, batas=220):
+    if len(teks) <= batas:
+        return teks
+    return teks[:batas].rstrip() + "..."
+
+
 def render_daftar_catatan():
     st.title("📋 Daftar Catatan")
-    st.write("Lihat, cari, filter, edit, ubah status, atau hapus catatan yang sudah kamu buat.")
+    st.write(
+        "Lihat semua catatan dalam bentuk ringkas. "
+        "Klik tombol detail untuk membaca isi lengkap atau mengedit catatan."
+    )
 
     st.divider()
 
@@ -123,7 +130,9 @@ def render_daftar_catatan():
 
     st.subheader(f"📌 {len(data_tampil)} Catatan Ditemukan")
 
-    for index, catatan in data_tampil:
+    kolom_kartu = st.columns(2)
+
+    for posisi, (index, catatan) in enumerate(data_tampil):
         judul = catatan.get("judul", "-")
         isi = catatan.get("isi", "-")
         kategori = catatan.get("kategori", "-")
@@ -131,123 +140,26 @@ def render_daftar_catatan():
         status = catatan.get("status", "Belum dikerjakan")
         deadline = catatan.get("deadline", "-")
 
-        with st.container(border=True):
-            col_judul, col_status = st.columns([3, 1])
-
-            with col_judul:
+        with kolom_kartu[posisi % 2]:
+            with st.container(border=True):
                 st.markdown(f"### {judul}")
-                st.caption(f"📅 Deadline: {deadline} | {cek_deadline(deadline)}")
 
-            with col_status:
-                st.write(label_status(status))
-                st.write(label_prioritas(prioritas))
+                st.caption(f"📅 Deadline: {deadline}")
+                st.caption(cek_deadline(deadline))
 
-            st.write(isi)
+                col_badge1, col_badge2 = st.columns(2)
+                col_badge1.info(f"📂 {kategori}")
+                col_badge2.info(label_prioritas(prioritas))
 
-            col_meta1, col_meta2, col_meta3 = st.columns(3)
-            col_meta1.info(f"Kategori: {kategori}")
-            col_meta2.info(f"Prioritas: {prioritas}")
-            col_meta3.info(f"Status: {status}")
+                st.write(potong_teks(isi))
 
-            st.divider()
+                st.caption(label_status(status))
 
-            col_update, col_edit, col_hapus = st.columns([2, 2, 1])
-
-            # =========================
-            # UBAH STATUS CEPAT
-            # =========================
-            with col_update:
-                status_sekarang = status
-
-                if status_sekarang not in STATUS_LIST:
-                    status_sekarang = "Belum dikerjakan"
-
-                status_baru = st.selectbox(
-                    "Ubah status",
-                    STATUS_LIST,
-                    index=STATUS_LIST.index(status_sekarang),
-                    key=f"status_{index}"
-                )
-
-                if status_baru != catatan.get("status"):
-                    st.session_state.catatan_list[index]["status"] = status_baru
-                    simpan_catatan(st.session_state.catatan_list)
-                    st.success("Status berhasil diperbarui.")
-                    st.rerun()
-
-            # =========================
-            # EDIT CATATAN
-            # =========================
-            with col_edit:
-                with st.expander("✏️ Edit"):
-                    with st.form(f"form_edit_{index}"):
-                        edit_judul = st.text_input(
-                            "Judul",
-                            value=judul,
-                            key=f"edit_judul_{index}"
-                        )
-
-                        edit_isi = st.text_area(
-                            "Isi",
-                            value=isi,
-                            key=f"edit_isi_{index}"
-                        )
-
-                        edit_kategori = st.selectbox(
-                            "Kategori",
-                            KATEGORI_LIST,
-                            index=KATEGORI_LIST.index(kategori)
-                            if kategori in KATEGORI_LIST else 0,
-                            key=f"edit_kategori_{index}"
-                        )
-
-                        edit_prioritas = st.selectbox(
-                            "Prioritas",
-                            PRIORITAS_LIST,
-                            index=PRIORITAS_LIST.index(prioritas)
-                            if prioritas in PRIORITAS_LIST else 1,
-                            key=f"edit_prioritas_{index}"
-                        )
-
-                        try:
-                            deadline_value = datetime.strptime(
-                                deadline, "%Y-%m-%d"
-                            ).date()
-                        except:
-                            deadline_value = datetime.today().date()
-
-                        edit_deadline = st.date_input(
-                            "Deadline",
-                            value=deadline_value,
-                            key=f"edit_deadline_{index}"
-                        )
-
-                        tombol_update = st.form_submit_button(
-                            "Simpan Perubahan",
-                            use_container_width=True
-                        )
-
-                        if tombol_update:
-                            if edit_judul.strip() == "" or edit_isi.strip() == "":
-                                st.warning("Judul dan isi tidak boleh kosong.")
-                            else:
-                                st.session_state.catatan_list[index]["judul"] = edit_judul
-                                st.session_state.catatan_list[index]["isi"] = edit_isi
-                                st.session_state.catatan_list[index]["kategori"] = edit_kategori
-                                st.session_state.catatan_list[index]["prioritas"] = edit_prioritas
-                                st.session_state.catatan_list[index]["deadline"] = str(edit_deadline)
-
-                                simpan_catatan(st.session_state.catatan_list)
-                                st.success("Catatan berhasil diperbarui.")
-                                st.rerun()
-
-            # =========================
-            # HAPUS CATATAN
-            # =========================
-            with col_hapus:
-                st.write("")
-                st.write("")
-                if st.button("🗑️ Hapus", key=f"hapus_{index}", use_container_width=True):
-                    st.session_state.catatan_list.pop(index)
-                    simpan_catatan(st.session_state.catatan_list)
+                if st.button(
+                    "Buka Detail",
+                    key=f"detail_{index}",
+                    use_container_width=True
+                ):
+                    st.session_state.selected_catatan_index = index
+                    st.session_state.halaman = "Detail Catatan"
                     st.rerun()
