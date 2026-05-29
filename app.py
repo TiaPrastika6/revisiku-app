@@ -9,6 +9,7 @@ from views.detail_catatan import render_detail_catatan
 from views.backup_data import render_backup_data
 from views.kalender_deadline import render_kalender_deadline
 from views.pencarian_global import render_pencarian_global
+from views.arsip_catatan import render_arsip_catatan
 
 
 st.set_page_config(
@@ -51,6 +52,10 @@ with st.sidebar:
         st.session_state.halaman = "Daftar Catatan"
         st.rerun()
 
+    if st.button("🗃️ Arsip Catatan", use_container_width=True):
+        st.session_state.halaman = "Arsip Catatan"
+        st.rerun()
+
     if st.button("🔍 Cari Catatan", use_container_width=True):
         st.session_state.halaman = "Cari Catatan"
         st.rerun()
@@ -81,6 +86,9 @@ elif st.session_state.halaman == "Tambah Catatan":
 
 elif st.session_state.halaman == "Daftar Catatan":
     render_daftar_catatan()
+
+elif st.session_state.halaman == "Arsip Catatan":
+    render_arsip_catatan()
 
 elif st.session_state.halaman == "Cari Catatan":
     render_pencarian_global()

@@ -112,7 +112,8 @@ def render_tambah_catatan():
                             "deadline": str(deadline),
                             "status": status,
                             "tanggal_dibuat": str(date.today()),
-                            "checklist": []
+                            "checklist": [],
+                            "arsip": False,
                         }
 
                         st.session_state.catatan_list.append(catatan_baru)

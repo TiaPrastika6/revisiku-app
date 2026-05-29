@@ -1,5 +1,6 @@
 import streamlit as st
 
+from data import simpan_catatan
 from utils import (
     STATUS_LIST,
     KATEGORI_LIST,
@@ -26,8 +27,11 @@ def label_status(status):
 
 
 def potong_teks(teks, batas=220):
+    teks = str(teks or "")
+
     if len(teks) <= batas:
         return teks
+
     return teks[:batas].rstrip() + "..."
 
 
@@ -88,6 +92,10 @@ def render_daftar_catatan():
     data_tampil = []
 
     for index, catatan in enumerate(st.session_state.catatan_list):
+        # Catatan yang sudah diarsipkan tidak tampil di daftar utama
+        if catatan.get("arsip", False):
+            continue
+
         cocok_kategori = (
             filter_kategori == "Semua"
             or catatan.get("kategori") == filter_kategori
@@ -103,7 +111,13 @@ def render_daftar_catatan():
             or catatan.get("prioritas", "Sedang") == filter_prioritas
         )
 
-        teks = f"{catatan.get('judul', '')} {catatan.get('isi', '')}".lower()
+        teks = (
+            f"{catatan.get('judul', '')} "
+            f"{catatan.get('isi', '')} "
+            f"{catatan.get('mata_kuliah', '')} "
+            f"{catatan.get('nama_dosen', '')}"
+        ).lower()
+
         cocok_keyword = keyword.lower() in teks
 
         if cocok_kategori and cocok_status and cocok_prioritas and cocok_keyword:
@@ -139,6 +153,8 @@ def render_daftar_catatan():
         prioritas = catatan.get("prioritas", "Sedang")
         status = catatan.get("status", "Belum dikerjakan")
         deadline = catatan.get("deadline", "-")
+        mata_kuliah = catatan.get("mata_kuliah", "")
+        nama_dosen = catatan.get("nama_dosen", "")
 
         with kolom_kartu[posisi % 2]:
             with st.container(border=True):
@@ -151,15 +167,43 @@ def render_daftar_catatan():
                 col_badge1.info(f"📂 {kategori}")
                 col_badge2.info(label_prioritas(prioritas))
 
+                if mata_kuliah:
+                    st.caption(f"📚 Mata Kuliah: {mata_kuliah}")
+
+                if nama_dosen:
+                    st.caption(f"👩‍🏫 Nama Dosen: {nama_dosen}")
+
                 st.write(potong_teks(isi))
 
                 st.caption(label_status(status))
 
-                if st.button(
-                    "Buka Detail",
-                    key=f"detail_{index}",
-                    use_container_width=True
-                ):
-                    st.session_state.selected_catatan_index = index
-                    st.session_state.halaman = "Detail Catatan"
-                    st.rerun()
+                col_btn1, col_btn2 = st.columns(2)
+
+                with col_btn1:
+                    if st.button(
+                        "Buka Detail",
+                        key=f"detail_{index}",
+                        use_container_width=True
+                    ):
+                        st.session_state.selected_catatan_index = index
+                        st.session_state.halaman = "Detail Catatan"
+                        st.rerun()
+
+                with col_btn2:
+                    if status == "Selesai":
+                        if st.button(
+                            "Arsipkan",
+                            key=f"arsip_{index}",
+                            use_container_width=True
+                        ):
+                            st.session_state.catatan_list[index]["arsip"] = True
+                            simpan_catatan(st.session_state.catatan_list)
+                            st.success("Catatan berhasil diarsipkan.")
+                            st.rerun()
+                    else:
+                        st.button(
+                            "Arsipkan",
+                            key=f"arsip_disabled_{index}",
+                            use_container_width=True,
+                            disabled=True
+                        )

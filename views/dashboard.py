@@ -37,7 +37,10 @@ def render_dashboard():
         unsafe_allow_html=True
     )
 
-    catatan_list = st.session_state.catatan_list
+    catatan_list = [
+        catatan for catatan in st.session_state.catatan_list
+        if not catatan.get("arsip", False)
+    ]
     total, belum, proses, selesai, terlambat = hitung_statistik(catatan_list)
 
     progress = 0
