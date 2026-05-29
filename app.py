@@ -1,0 +1,61 @@
+import streamlit as st
+
+from data import init_session
+from styles import load_css
+from views.dashboard import render_dashboard
+from views.tambah_catatan import render_tambah_catatan
+from views.daftar_catatan import render_daftar_catatan
+
+
+st.set_page_config(
+    page_title="RevisiKu",
+    page_icon="📘",
+    layout="wide"
+)
+
+load_css()
+init_session()
+
+
+# =========================
+# SIDEBAR
+# =========================
+if "halaman" not in st.session_state:
+    st.session_state.halaman = "Dashboard"
+
+
+with st.sidebar:
+    st.markdown("## 📘 RevisiKu")
+    st.caption("Academic Notes Tracker")
+
+    st.divider()
+
+    st.markdown("#### Menu")
+
+    if st.button("🏠 Dashboard", use_container_width=True):
+        st.session_state.halaman = "Dashboard"
+
+    if st.button("➕ Tambah Catatan", use_container_width=True):
+        st.session_state.halaman = "Tambah Catatan"
+
+    if st.button("📋 Daftar Catatan", use_container_width=True):
+        st.session_state.halaman = "Daftar Catatan"
+
+    st.divider()
+
+    st.caption(
+        "Catat tugas, revisi, bimbingan, dan deadline dalam satu tempat."
+    )
+
+
+# =========================
+# ROUTING HALAMAN
+# =========================
+if st.session_state.halaman == "Dashboard":
+    render_dashboard()
+
+elif st.session_state.halaman == "Tambah Catatan":
+    render_tambah_catatan()
+
+elif st.session_state.halaman == "Daftar Catatan":
+    render_daftar_catatan()
