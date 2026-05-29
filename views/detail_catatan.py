@@ -235,6 +235,25 @@ def render_detail_catatan():
             with st.container(border=True):
                 st.subheader("Edit Catatan")
 
+                st.caption(
+                    "Ubah data catatan. Kamu juga bisa mengganti kategori catatan yang sudah dibuat."
+                )
+
+                # Key khusus supaya pilihan kategori edit tidak reset terus
+                edit_kategori_key = f"edit_kategori_detail_{index}"
+
+                if edit_kategori_key not in st.session_state:
+                    if kategori in KATEGORI_LIST:
+                        st.session_state[edit_kategori_key] = kategori
+                    else:
+                        st.session_state[edit_kategori_key] = KATEGORI_LIST[0]
+
+                edit_kategori = st.selectbox(
+                    "Kategori",
+                    KATEGORI_LIST,
+                    key=edit_kategori_key
+                )
+
                 with st.form("form_edit_detail"):
                     edit_judul = st.text_input(
                         "Judul catatan",
@@ -247,16 +266,29 @@ def render_detail_catatan():
                         height=320
                     )
 
+                    # =========================
+                    # FIELD TAMBAHAN DINAMIS
+                    # =========================
+                    edit_mata_kuliah = ""
+                    edit_nama_dosen = ""
+
+                    if edit_kategori == "Tugas":
+                        edit_mata_kuliah = st.text_input(
+                            "Mata Kuliah",
+                            value=catatan.get("mata_kuliah", ""),
+                            placeholder="Contoh: Metodologi Penelitian"
+                        )
+
+                    elif edit_kategori == "Bimbingan":
+                        edit_nama_dosen = st.text_input(
+                            "Nama Dosen",
+                            value=catatan.get("nama_dosen", ""),
+                            placeholder="Contoh: Pak AW"
+                        )
+
                     col_edit1, col_edit2 = st.columns(2)
 
                     with col_edit1:
-                        edit_kategori = st.selectbox(
-                            "Kategori",
-                            KATEGORI_LIST,
-                            index=KATEGORI_LIST.index(kategori)
-                            if kategori in KATEGORI_LIST else 0
-                        )
-
                         edit_status = st.selectbox(
                             "Status",
                             STATUS_LIST,
@@ -272,17 +304,17 @@ def render_detail_catatan():
                             if prioritas in PRIORITAS_LIST else 1
                         )
 
-                        try:
-                            deadline_value = datetime.strptime(
-                                deadline, "%Y-%m-%d"
-                            ).date()
-                        except:
-                            deadline_value = datetime.today().date()
+                    try:
+                        deadline_value = datetime.strptime(
+                            deadline, "%Y-%m-%d"
+                        ).date()
+                    except:
+                        deadline_value = datetime.today().date()
 
-                        edit_deadline = st.date_input(
-                            "Deadline",
-                            value=deadline_value
-                        )
+                    edit_deadline = st.date_input(
+                        "Deadline",
+                        value=deadline_value
+                    )
 
                     tombol_update = st.form_submit_button(
                         "💾 Simpan Perubahan",
@@ -292,6 +324,13 @@ def render_detail_catatan():
                     if tombol_update:
                         if edit_judul.strip() == "" or edit_isi.strip() == "":
                             st.warning("Judul dan isi catatan tidak boleh kosong.")
+
+                        elif edit_kategori == "Tugas" and edit_mata_kuliah.strip() == "":
+                            st.warning("Mata kuliah wajib diisi untuk kategori Tugas.")
+
+                        elif edit_kategori == "Bimbingan" and edit_nama_dosen.strip() == "":
+                            st.warning("Nama dosen wajib diisi untuk kategori Bimbingan.")
+
                         else:
                             st.session_state.catatan_list[index]["judul"] = edit_judul
                             st.session_state.catatan_list[index]["isi"] = edit_isi
@@ -299,6 +338,19 @@ def render_detail_catatan():
                             st.session_state.catatan_list[index]["prioritas"] = edit_prioritas
                             st.session_state.catatan_list[index]["status"] = edit_status
                             st.session_state.catatan_list[index]["deadline"] = str(edit_deadline)
+
+                            # Simpan field tambahan sesuai kategori baru
+                            if edit_kategori == "Tugas":
+                                st.session_state.catatan_list[index]["mata_kuliah"] = edit_mata_kuliah
+                                st.session_state.catatan_list[index]["nama_dosen"] = ""
+
+                            elif edit_kategori == "Bimbingan":
+                                st.session_state.catatan_list[index]["nama_dosen"] = edit_nama_dosen
+                                st.session_state.catatan_list[index]["mata_kuliah"] = ""
+
+                            else:
+                                st.session_state.catatan_list[index]["mata_kuliah"] = ""
+                                st.session_state.catatan_list[index]["nama_dosen"] = ""
 
                             simpan_catatan(st.session_state.catatan_list)
                             st.success("Catatan berhasil diperbarui.")
