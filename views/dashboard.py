@@ -8,12 +8,72 @@ from utils import (
 )
 
 
-def potong_teks(teks, batas=180):
+def potong_teks(teks, batas=170):
     teks = str(teks or "")
     if len(teks) <= batas:
         return teks
     return teks[:batas].rstrip() + "..."
 
+
+def buka_detail(index):
+    st.session_state.selected_catatan_index = index
+    st.session_state.halaman = "Detail Catatan"
+    st.rerun()
+
+
+def render_kartu_deadline(index, catatan, label_tombol):
+    with st.container(border=True):
+        st.markdown(f"### {catatan.get('judul', '-')}")
+        st.write(potong_teks(catatan.get("isi", "-"), 180))
+
+        if catatan.get("mata_kuliah"):
+            st.caption(f"📚 Mata Kuliah: {catatan.get('mata_kuliah')}")
+
+        if catatan.get("nama_dosen"):
+            st.caption(f"👩‍🏫 Nama Dosen: {catatan.get('nama_dosen')}")
+
+        st.caption(
+            f"📂 {catatan.get('kategori', '-')} | "
+            f"⭐ {catatan.get('prioritas', 'Sedang')} | "
+            f"📌 {catatan.get('status', '-')}"
+        )
+
+        st.write(f"**Deadline:** {catatan.get('deadline', '-')}")
+        st.caption(cek_deadline(catatan.get("deadline", "")))
+
+        if st.button(
+            label_tombol,
+            key=f"dashboard_detail_{label_tombol}_{index}",
+            use_container_width=True
+        ):
+            buka_detail(index)
+
+def render_empty_deadline(icon, judul, pesan):
+    with st.container(border=True):
+        st.markdown(f"### {icon} {judul}")
+        st.success(pesan)
+
+
+def render_deadline_summary(jumlah_telat, jumlah_hari_ini, jumlah_h3):
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        with st.container(border=True):
+            st.subheader("🚨 Terlambat")
+            st.metric("Catatan", jumlah_telat)
+            st.caption("Catatan yang sudah melewati deadline.")
+
+    with col2:
+        with st.container(border=True):
+            st.subheader("🔥 Hari Ini")
+            st.metric("Catatan", jumlah_hari_ini)
+            st.caption("Catatan yang harus diperhatikan hari ini.")
+
+    with col3:
+        with st.container(border=True):
+            st.subheader("⏳ H-3")
+            st.metric("Catatan", jumlah_h3)
+            st.caption("Catatan dengan deadline 1–3 hari lagi.")
 
 def render_dashboard():
     # =========================
@@ -37,32 +97,56 @@ def render_dashboard():
         unsafe_allow_html=True
     )
 
+    # Catatan arsip tidak dihitung di dashboard utama
     catatan_list = [
         catatan for catatan in st.session_state.catatan_list
         if not catatan.get("arsip", False)
     ]
+
     total, belum, proses, selesai, terlambat = hitung_statistik(catatan_list)
 
     progress = 0
     if total > 0:
         progress = round((selesai / total) * 100)
 
-    catatan_aktif = [
-        catatan for catatan in catatan_list
-        if catatan.get("status") != "Selesai"
-    ]
+    # Ambil catatan aktif beserta index aslinya
+    catatan_aktif = []
+
+    for index, catatan in enumerate(st.session_state.catatan_list):
+        if catatan.get("arsip", False):
+            continue
+
+        if catatan.get("status") == "Selesai":
+            continue
+
+        catatan_aktif.append((index, catatan))
 
     catatan_aktif.sort(
-        key=lambda catatan: deadline_untuk_sorting(catatan.get("deadline", ""))
+        key=lambda item: deadline_untuk_sorting(item[1].get("deadline", ""))
     )
 
-    fokus_hari_ini = []
+    deadline_terlambat = []
+    deadline_hari_ini = []
+    deadline_h3 = []
 
-    for catatan in catatan_aktif:
+    for index, catatan in catatan_aktif:
         sisa_hari = hitung_sisa_hari(catatan.get("deadline", ""))
 
-        if sisa_hari is not None and sisa_hari <= 0:
-            fokus_hari_ini.append(catatan)
+        if sisa_hari is None:
+            continue
+
+        if sisa_hari < 0:
+            deadline_terlambat.append((index, catatan))
+        elif sisa_hari == 0:
+            deadline_hari_ini.append((index, catatan))
+        elif 1 <= sisa_hari <= 3:
+            deadline_h3.append((index, catatan))
+
+    jumlah_fokus = (
+        len(deadline_terlambat)
+        + len(deadline_hari_ini)
+        + len(deadline_h3)
+    )
 
     # =========================
     # HERO DASHBOARD
@@ -90,9 +174,9 @@ def render_dashboard():
                 st.info("✅ Progress revisi")
 
         with col_focus:
-            st.subheader("Fokus Hari Ini")
-            st.metric("Perlu Dikerjakan", len(fokus_hari_ini))
-            st.caption("Catatan yang deadline hari ini atau sudah terlambat.")
+            st.subheader("Fokus Deadline")
+            st.metric("Perlu Dipantau", jumlah_fokus)
+            st.caption("Catatan terlambat, deadline hari ini, dan deadline H-3.")
 
     st.write("")
 
@@ -105,37 +189,78 @@ def render_dashboard():
     col2.metric("🕒 Belum", belum)
     col3.metric("🔧 Proses", proses)
     col4.metric("✅ Selesai", selesai)
-    col5.metric("🚨 Terlambat", terlambat)
+    col5.metric("🚨 Terlambat", len(deadline_terlambat))
 
     st.divider()
 
     # =========================
-    # FOKUS HARI INI
+    # REMINDER DEADLINE
     # =========================
-    st.subheader("🔥 Fokus Hari Ini")
+    st.subheader("🚨 Reminder Deadline")
+    st.caption(
+        "Ringkasan catatan yang perlu kamu perhatikan berdasarkan jarak deadline."
+    )
 
-    if len(fokus_hari_ini) == 0:
-        st.success(
-            "Tidak ada catatan yang deadline hari ini atau terlambat. "
-            "Aman untuk sementara."
-        )
+    render_deadline_summary(
+        len(deadline_terlambat),
+        len(deadline_hari_ini),
+        len(deadline_h3)
+    )
+
+    st.write("")
+
+    if jumlah_fokus == 0:
+        with st.container(border=True):
+            st.subheader("✅ Semua aman")
+            st.write(
+                "Belum ada catatan yang terlambat, deadline hari ini, atau deadline H-3."
+            )
+            st.caption("Kamu bisa lanjut mengerjakan catatan lain yang deadline-nya lebih jauh.")
     else:
-        for catatan in fokus_hari_ini:
-            with st.container(border=True):
-                col_info, col_deadline = st.columns([3, 1])
+        tab_telat, tab_hari_ini, tab_h3 = st.tabs([
+            f"🚨 Terlambat ({len(deadline_terlambat)})",
+            f"🔥 Hari Ini ({len(deadline_hari_ini)})",
+            f"⏳ H-3 ({len(deadline_h3)})"
+        ])
 
-                with col_info:
-                    st.markdown(f"### {catatan.get('judul', '-')}")
-                    st.write(potong_teks(catatan.get("isi", "-"), 260))
-                    st.caption(
-                        f"Kategori: {catatan.get('kategori', '-')} | "
-                        f"Prioritas: {catatan.get('prioritas', 'Sedang')}"
-                    )
+        with tab_telat:
+            if len(deadline_terlambat) == 0:
+                render_empty_deadline(
+                    "✅",
+                    "Tidak ada yang terlambat",
+                    "Semua catatan masih aman dari keterlambatan."
+                )
+            else:
+                cols = st.columns(2)
+                for posisi, (index, catatan) in enumerate(deadline_terlambat):
+                    with cols[posisi % 2]:
+                        render_kartu_deadline(index, catatan, "Buka Detail")
 
-                with col_deadline:
-                    st.warning(cek_deadline(catatan.get("deadline", "")))
+        with tab_hari_ini:
+            if len(deadline_hari_ini) == 0:
+                render_empty_deadline(
+                    "🌿",
+                    "Tidak ada deadline hari ini",
+                    "Hari ini tidak ada catatan yang harus diselesaikan tepat hari ini."
+                )
+            else:
+                cols = st.columns(2)
+                for posisi, (index, catatan) in enumerate(deadline_hari_ini):
+                    with cols[posisi % 2]:
+                        render_kartu_deadline(index, catatan, "Buka Detail")
 
-    st.divider()
+        with tab_h3:
+            if len(deadline_h3) == 0:
+                render_empty_deadline(
+                    "🕊️",
+                    "Tidak ada deadline H-3",
+                    "Tidak ada catatan dengan deadline 1–3 hari lagi."
+                )
+            else:
+                cols = st.columns(2)
+                for posisi, (index, catatan) in enumerate(deadline_h3):
+                    with cols[posisi % 2]:
+                        render_kartu_deadline(index, catatan, "Buka Detail")
 
     # =========================
     # BAGIAN BAWAH
@@ -145,7 +270,7 @@ def render_dashboard():
     with col_progress:
         with st.container(border=True):
             st.subheader("📈 Progress Pengerjaan")
-            st.caption("Persentase catatan yang sudah ditandai selesai.")
+            st.caption("Persentase catatan aktif yang sudah ditandai selesai.")
 
             st.metric("Progress", f"{progress}%")
             st.progress(progress / 100)
@@ -163,7 +288,7 @@ def render_dashboard():
                     "buat mulai nyatet tugas atau revisi baru."
                 )
             else:
-                for catatan in catatan_aktif[:4]:
+                for index, catatan in catatan_aktif[:4]:
                     with st.container(border=True):
                         col_teks, col_status = st.columns([3, 1])
 
@@ -176,6 +301,13 @@ def render_dashboard():
                             )
 
                         with col_status:
-                            st.write(f"**Deadline:**")
+                            st.write("**Deadline:**")
                             st.write(catatan.get("deadline", "-"))
                             st.caption(cek_deadline(catatan.get("deadline", "")))
+
+                            if st.button(
+                                "Detail",
+                                key=f"deadline_terdekat_{index}",
+                                use_container_width=True
+                            ):
+                                buka_detail(index)
