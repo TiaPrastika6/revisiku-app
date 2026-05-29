@@ -6,6 +6,7 @@ from views.dashboard import render_dashboard
 from views.tambah_catatan import render_tambah_catatan
 from views.daftar_catatan import render_daftar_catatan
 from views.detail_catatan import render_detail_catatan
+from views.backup_data import render_backup_data
 
 
 st.set_page_config(
@@ -48,6 +49,10 @@ with st.sidebar:
         st.session_state.halaman = "Daftar Catatan"
         st.rerun()
 
+    if st.button("💾 Backup Data", use_container_width=True):
+        st.session_state.halaman = "Backup Data"
+        st.rerun()
+
     st.divider()
 
     st.caption(
@@ -69,3 +74,6 @@ elif st.session_state.halaman == "Daftar Catatan":
 
 elif st.session_state.halaman == "Detail Catatan":
     render_detail_catatan()
+
+elif st.session_state.halaman == "Backup Data":
+    render_backup_data()
