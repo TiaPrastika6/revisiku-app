@@ -1,6 +1,11 @@
 import streamlit as st
 
-from utils import hitung_statistik, cek_deadline, deadline_untuk_sorting
+from utils import (
+    hitung_statistik,
+    cek_deadline,
+    deadline_untuk_sorting,
+    hitung_sisa_hari
+)
 
 
 def render_dashboard():
@@ -20,6 +25,14 @@ def render_dashboard():
         key=lambda catatan: deadline_untuk_sorting(catatan.get("deadline", ""))
     )
 
+    fokus_hari_ini = []
+
+    for catatan in catatan_aktif:
+        sisa_hari = hitung_sisa_hari(catatan.get("deadline", ""))
+
+        if sisa_hari is not None and sisa_hari <= 0:
+            fokus_hari_ini.append(catatan)
+
     # =========================
     # HERO DASHBOARD
     # =========================
@@ -33,13 +46,12 @@ def render_dashboard():
                 "Tempat buat nyimpen tugas, revisi, bimbingan, dan deadline "
                 "biar semuanya lebih rapi dan nggak numpuk di kepala."
             )
-
             st.write("📝 Catatan akademik  |  ⏰ Deadline tracker  |  ✅ Progress revisi")
 
         with col2:
-            st.subheader("Fokus Mendesak")
-            st.metric("Terlambat", terlambat)
-            st.caption("Catatan belum selesai yang sudah melewati deadline.")
+            st.subheader("Fokus Hari Ini")
+            st.metric("Perlu Dikerjakan", len(fokus_hari_ini))
+            st.caption("Catatan yang deadline hari ini atau sudah terlambat.")
 
     st.write("")
 
@@ -53,6 +65,25 @@ def render_dashboard():
     col3.metric("🔧 Proses", proses)
     col4.metric("✅ Selesai", selesai)
     col5.metric("🚨 Terlambat", terlambat)
+
+    st.divider()
+
+    # =========================
+    # FOKUS HARI INI
+    # =========================
+    st.subheader("🔥 Fokus Hari Ini")
+
+    if len(fokus_hari_ini) == 0:
+        st.success("Tidak ada catatan yang deadline hari ini atau terlambat. Aman untuk sementara.")
+    else:
+        for catatan in fokus_hari_ini:
+            with st.container(border=True):
+                st.markdown(f"### {catatan.get('judul', '-')}")
+                st.write(catatan.get("isi", "-"))
+                st.write(f"**Kategori:** {catatan.get('kategori', '-')}")
+                st.write(f"**Prioritas:** {catatan.get('prioritas', 'Sedang')}")
+                st.write(f"**Deadline:** {catatan.get('deadline', '-')}")
+                st.warning(cek_deadline(catatan.get("deadline", "")))
 
     st.divider()
 

@@ -29,6 +29,13 @@ def deadline_untuk_sorting(deadline_str):
     except:
         return date.max
 
+def hitung_sisa_hari(deadline_str):
+    try:
+        deadline = datetime.strptime(deadline_str, "%Y-%m-%d").date()
+        hari_ini = date.today()
+        return (deadline - hari_ini).days
+    except:
+        return None
 
 def hitung_statistik(catatan_list):
     total = len(catatan_list)
