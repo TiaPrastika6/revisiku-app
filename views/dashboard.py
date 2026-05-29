@@ -8,7 +8,35 @@ from utils import (
 )
 
 
+def potong_teks(teks, batas=180):
+    teks = str(teks or "")
+    if len(teks) <= batas:
+        return teks
+    return teks[:batas].rstrip() + "..."
+
+
 def render_dashboard():
+    # =========================
+    # STYLE KHUSUS DASHBOARD
+    # =========================
+    st.markdown(
+        """
+        <style>
+        .block-container {
+            padding-top: 2.5rem !important;
+        }
+
+        div[data-testid="stMetric"] {
+            background: rgba(15, 23, 42, 0.55);
+            border: 1px solid rgba(148, 163, 184, 0.16);
+            padding: 18px;
+            border-radius: 18px;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
     catatan_list = st.session_state.catatan_list
     total, belum, proses, selesai, terlambat = hitung_statistik(catatan_list)
 
@@ -37,18 +65,28 @@ def render_dashboard():
     # HERO DASHBOARD
     # =========================
     with st.container(border=True):
-        col1, col2 = st.columns([3, 1])
+        col_hero, col_focus = st.columns([3, 1.1], gap="large")
 
-        with col1:
+        with col_hero:
             st.caption("📘 Personal Academic Tracker")
             st.title("RevisiKu")
             st.write(
                 "Tempat buat nyimpen tugas, revisi, bimbingan, dan deadline "
                 "biar semuanya lebih rapi dan nggak numpuk di kepala."
             )
-            st.write("📝 Catatan akademik  |  ⏰ Deadline tracker  |  ✅ Progress revisi")
 
-        with col2:
+            col_chip1, col_chip2, col_chip3 = st.columns(3)
+
+            with col_chip1:
+                st.info("📝 Catatan akademik")
+
+            with col_chip2:
+                st.info("⏰ Deadline tracker")
+
+            with col_chip3:
+                st.info("✅ Progress revisi")
+
+        with col_focus:
             st.subheader("Fokus Hari Ini")
             st.metric("Perlu Dikerjakan", len(fokus_hari_ini))
             st.caption("Catatan yang deadline hari ini atau sudah terlambat.")
@@ -74,23 +112,32 @@ def render_dashboard():
     st.subheader("🔥 Fokus Hari Ini")
 
     if len(fokus_hari_ini) == 0:
-        st.success("Tidak ada catatan yang deadline hari ini atau terlambat. Aman untuk sementara.")
+        st.success(
+            "Tidak ada catatan yang deadline hari ini atau terlambat. "
+            "Aman untuk sementara."
+        )
     else:
         for catatan in fokus_hari_ini:
             with st.container(border=True):
-                st.markdown(f"### {catatan.get('judul', '-')}")
-                st.write(catatan.get("isi", "-"))
-                st.write(f"**Kategori:** {catatan.get('kategori', '-')}")
-                st.write(f"**Prioritas:** {catatan.get('prioritas', 'Sedang')}")
-                st.write(f"**Deadline:** {catatan.get('deadline', '-')}")
-                st.warning(cek_deadline(catatan.get("deadline", "")))
+                col_info, col_deadline = st.columns([3, 1])
+
+                with col_info:
+                    st.markdown(f"### {catatan.get('judul', '-')}")
+                    st.write(potong_teks(catatan.get("isi", "-"), 260))
+                    st.caption(
+                        f"Kategori: {catatan.get('kategori', '-')} | "
+                        f"Prioritas: {catatan.get('prioritas', 'Sedang')}"
+                    )
+
+                with col_deadline:
+                    st.warning(cek_deadline(catatan.get("deadline", "")))
 
     st.divider()
 
     # =========================
     # BAGIAN BAWAH
     # =========================
-    col_progress, col_deadline = st.columns([1, 1.4])
+    col_progress, col_deadline = st.columns([1, 1.5], gap="large")
 
     with col_progress:
         with st.container(border=True):
@@ -115,8 +162,17 @@ def render_dashboard():
             else:
                 for catatan in catatan_aktif[:4]:
                     with st.container(border=True):
-                        st.markdown(f"#### {catatan.get('judul', '-')}")
-                        st.write(f"**Kategori:** {catatan.get('kategori', '-')}")
-                        st.write(f"**Prioritas:** {catatan.get('prioritas', 'Sedang')}")
-                        st.write(f"**Deadline:** {catatan.get('deadline', '-')}")
-                        st.write(f"**Keterangan:** {cek_deadline(catatan.get('deadline', ''))}")
+                        col_teks, col_status = st.columns([3, 1])
+
+                        with col_teks:
+                            st.markdown(f"#### {catatan.get('judul', '-')}")
+                            st.write(potong_teks(catatan.get("isi", "-"), 220))
+                            st.caption(
+                                f"Kategori: {catatan.get('kategori', '-')} | "
+                                f"Prioritas: {catatan.get('prioritas', 'Sedang')}"
+                            )
+
+                        with col_status:
+                            st.write(f"**Deadline:**")
+                            st.write(catatan.get("deadline", "-"))
+                            st.caption(cek_deadline(catatan.get("deadline", "")))
